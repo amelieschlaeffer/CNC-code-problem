@@ -1,0 +1,103 @@
+//Bit positions in the Arduino UNO micro controller output
+
+#define PWM2B 3 //For slots M1&M2 on the L293D Motor Shield
+#define DIR_CLK 4 //SHCP of the Shift Register 74HC595
+#define PWM0B 5 //For slots M3&M4 on the L293D Motor Shield
+#define PWM0A 6 //For slots M3&M4 on the L293D Motor Shield
+#define DIR_EN 7 //OE of the Shift Register 74HC595
+#define DIR_SER 8 //DS of the Shift Register 74HC595
+#define PWM1A 9 //For slots SERVO1&SERVO3 on the L293D Motor Shield
+#define PWM1B 10 //For slots SERVO1&SERVO3 on the L293D Motor Shield
+#define PWM2A 11 //For slots M1&M2 on the L293D Motor Shield
+#define DIR_LATCH 12 //STCP of the Shift Register 74HC595
+
+//Bit positions in the 74HCT595 shift register output
+
+#define MOTOR3_A 15 //Q0
+#define MOTOR2_A 1 //Q1
+#define MOTOR1_A 2 //Q2
+#define MOTOR1_B 3 //Q3
+#define MOTOR2_B 4 //Q4
+#define MOTOR4_A 5 //Q5
+#define MOTOR3_B 6 //Q6
+#define MOTOR4_B 7 //Q7
+
+//Step BPMotor1 connected to M1&M2 by setting the following entries to HIGH, respectively: Q2=4, Q1=2, Q3=8, Q4=16
+//Step BPMotor2 connected to M3&M4 by setting the following entries to HIGH, respectively: Q0=1, Q5=32, Q6=64, Q7=128
+
+int BPMotor1Seq[4]={4,2,8,16}; //Sequence for BPM1 for forward 4 steps
+int BPMotor2Seq[4]={1,32,64,128}; //Sequence for BPM2 for forward 4 steps
+int stepperval;
+int stepper1val;
+int stepper2val;
+int qcounter = 0;
+int hcounter = 0;
+int hmax=1500;
+
+void setup() {
+
+  pinMode(DIR_EN, OUTPUT);
+  pinMode(DIR_SER, OUTPUT);
+  pinMode(DIR_LATCH, OUTPUT);
+  pinMode(DIR_CLK, OUTPUT);
+  pinMode(PWM0A, OUTPUT);
+  pinMode(PWM0B, OUTPUT);
+  digitalWrite(PWM0A, HIGH);
+  digitalWrite(PWM0B, HIGH);
+  pinMode(PWM2A, OUTPUT);
+  pinMode(PWM2B, OUTPUT);
+  digitalWrite(PWM2A, HIGH);
+  digitalWrite(PWM2B, HIGH);
+
+}
+
+void loop() {
+
+  if (hcounter<(hmax/4)) {
+    SetBPMotor1CW();
+    SetBPMotor2CW();
+  } else if (hcounter<(hmax/2)) {
+    SetBPMotor1CCW();
+    SetBPMotor2CW();
+  } else if (hcounter<(3*hmax/4)) {
+    SetBPMotor1CCW();
+    SetBPMotor2CCW();
+  } else {
+    SetBPMotor1CW();
+    SetBPMotor2CCW();
+  }
+
+  stepperval=stepper1val+stepper2val;
+  digitalWrite(DIR_LATCH, LOW);
+  shiftOut(DIR_SER, DIR_CLK, MSBFIRST, stepperval);
+  digitalWrite(DIR_LATCH, HIGH);
+  delay(20);
+  qcounter = (qcounter + 1) % 4;
+  hcounter = (hcounter + 1) % hmax;
+
+}
+
+void SetBPMotor1CW() {
+
+  stepper1val=BPMotor1Seq[qcounter];
+
+}
+
+void SetBPMotor1CCW() {
+
+  stepper1val=BPMotor1Seq[3-qcounter];
+
+}
+
+void SetBPMotor2CW() {
+
+
+  stepper2val=BPMotor2Seq[qcounter];
+
+}
+
+void SetBPMotor2CCW() {
+
+  stepper2val=BPMotor2Seq[3-qcounter];
+
+}
