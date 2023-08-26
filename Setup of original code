@@ -1,0 +1,100 @@
+// -------------------------------
+// GLOBALS
+// -------------------------------
+
+// ----- constants
+#define PI 3.1415926535897932384626433832795
+#define HALF_PI 1.5707963267948966192313216916398
+#define TWO_PI 6.283185307179586476925286766559
+#define DEG_TO_RAD 0.017453292519943295769236907684886
+#define RAD_TO_DEG 57.295779513082320876798154814105
+
+// ----- Bit set/clear/check/toggle macros
+#define SET(x,y) (x |=(1<<y)) 
+#define CLR(x,y) (x &= (~(1<<y)))
+#define CHK(x,y) (x & (1<<y))
+#define TOG(x,y) (x^=(1<<y))
+
+// ----- motor definitions 
+#define STEPS_PER_MM 200*16/40      //200steps/rev; 16 x microstepping; 40mm/rev
+#define NUDGE STEPS_PER_MM*5        //move pen 5mm (change number to suit)
+#define DIR1 8                      //arduino ports that motor coils are connected to through the driver!
+#define DIR2 10
+#define STEP1 9
+#define STEP2 11
+
+bool CW = true;                     //flag ... does not affect motor direction
+bool CCW = false;                   //flag ... does not affect motor direction
+bool DIRECTION1;                    //motor directions can be changed in step_motors()
+bool DIRECTION2;
+
+long
+PULSE_WIDTH = 2,                    //easydriver step pulse-width (uS)
+DELAY = 250;                        //delay (uS) between motor steps (controls speed)
+
+// ----- plotter definitions
+#define BAUD 9600
+#define XOFF 0x13                   //pause transmission (19 decimal)
+#define XON 0x11                    //resume transmission (17 decimal)
+#define PEN 3
+
+float
+SCALE_FACTOR = 1.0,                 //drawing scale (1 = 100%)
+ARC_MAX = 2.0;                      //maximum arc-length (controls smoothness)
+
+int
+/*
+   XY plotters only deal in integer steps.
+*/
+THIS_X = 0,                         //"scaled" x co-ordinate (rounded)
+THIS_Y = 0,                         //"scaled" y co-ordinate (rounded)
+LAST_X = 0,                         //"scaled" x co-ordinate (rounded)
+LAST_Y = 0;                         //"scaled" y co-ordinate (rounded)
+
+// ----- gcode definitions
+#define STRING_SIZE 128             //string size
+
+char
+BUFFER[STRING_SIZE + 1],
+       INPUT_CHAR;
+
+String
+INPUT_STRING,
+SUB_STRING;
+
+int
+INDEX = 0,                        //buffer index
+START,                            //used for sub_string extraction
+FINISH;
+
+float
+X,                                //gcode float values held here
+Y,
+I,
+J;
+
+// -----------------------
+// SETUP
+// -----------------------
+void setup()
+{
+  // ----- initialise motor1
+  pinMode(DIR1, OUTPUT);
+  pinMode(STEP1, OUTPUT);
+  digitalWrite(DIR1, CW);
+  delayMicroseconds(PULSE_WIDTH);
+  digitalWrite(STEP1, LOW);
+
+  // ----- initialise motor2
+  pinMode(DIR2, OUTPUT);
+  pinMode(STEP2, OUTPUT);
+  digitalWrite(DIR2, CW);
+  delayMicroseconds(PULSE_WIDTH);
+  digitalWrite(STEP2, LOW);
+
+  // ----- pen-lift
+  pinMode(PEN, OUTPUT);                                       //D3
+  TCCR2A = _BV(COM2B1) | _BV(COM2B0) | _BV(WGM20);            //PWM
+  TCCR2B = _BV(WGM22) | _BV(CS22) | _BV(CS21) | _BV(CS20);    //div 1024
+  OCR2A = 156;                                                //20mS period
+  OCR2B = 148;                                                //2mS period (pen-up)
